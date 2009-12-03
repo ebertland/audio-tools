@@ -1,8 +1,11 @@
+# $Id$
+
 PREFIX := $(HOME)/tools
+SCRIPTS := $(wildcard *.py *.sh)
 
 all:
-	install -D backup-tags.py $(PREFIX)/bin/backup-tags
+	for script in $(SCRIPTS); do \
+	    install -D $$script $(PREFIX)/bin/$${script%.*}; \
+	done
+	# restore-tags runs backup-tags in restore mode.
 	ln -f $(PREFIX)/bin/backup-tags $(PREFIX)/bin/restore-tags
-	install -D copy-tags.py $(PREFIX)/bin/copy-tags
-	install -D fix-mb-tags.py $(PREFIX)/bin/fix-mb-tags
-	install -D replaygain-id3v2.sh $(PREFIX)/bin/replaygain-id3v2
