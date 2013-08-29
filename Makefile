@@ -9,3 +9,4 @@ all:
 	done
 	# restore-tags runs backup-tags in restore mode.
 	ln -f $(PREFIX)/bin/backup-tags $(PREFIX)/bin/restore-tags
+	install -D abcde.conf $(HOME)/.abcde.conf

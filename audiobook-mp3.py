@@ -6,17 +6,17 @@ import sys
 import time
 import tempfile
 from multiprocessing import Process, active_children
+import dbus
 
 DRYRUN = False
-CDROM_DEVICE = '/dev/dvdrw1'
+CDROM_DEVICE = '/dev/disk/by-id/ata-TSSTcorp_CDDVDW_SH-S223L_Q9896GCZ314625'
 #CDPARANOIA = 'nice -n 5 cdparanoia'
 #CDPARANOIA = 'nice -n 5 cdparanoia -Y'
 CDPARANOIA = 'nice -n 5 cdparanoia -Z'
 LAME = 'nice -n 10 lame'
-EJECT = 'eject'
 RUN_IN_TERMINAL = ('gnome-terminal -t "%s" --disable-factory --zoom=0.5 '
                    '--hide-menubar -x')
-                   
+
 def sh(cmd, echo=True, dryrun=False):
     if isinstance(cmd, list) or isinstance(cmd, tuple):
         cmd = ' '.join(cmd)
@@ -35,7 +35,7 @@ def mkdir_and_chdir(d):
 
 def rip_cd():
     sh([CDPARANOIA, '-d', CDROM_DEVICE, '-B'])
-    
+
 def encode_all_wav(disc_num, artist, album, year, genre='Spoken Word'):
     # Make a script, and then run _that_ in a terminal. Less pop-ups.
     # This is such a hack. :-P
@@ -76,6 +76,29 @@ def wait_all():
     while active_children():
         time.sleep(1.0)
 
+class Cd_device(object):
+    def __init__(self, cdrom_device_path):
+        self._cdrom_device_path = cdrom_device_path
+        
+        bus = dbus.SystemBus()
+        udisks = bus.get_object(
+            "org.freedesktop.UDisks", 
+            "/org/freedesktop/UDisks")
+        self._cd_dbus_obj = bus.get_object(
+            "org.freedesktop.UDisks", 
+            udisks.FindDeviceByDeviceFile(CDROM_DEVICE))
+    
+    def wait_for_media(self):
+        while not self._cd_dbus_obj.Get('', 'DeviceIsMediaAvailable'):
+            time.sleep(1.0)
+
+    def eject(self):
+        self._cd_dbus_obj.DriveEject(
+            '', 
+            dbus_interface='org.freedesktop.UDisks.Device')
+        #XXX Needed?
+        time.sleep(1.0)
+
 def main():
     if len(sys.argv) == 1:
         artist = raw_input('Author: ')
@@ -99,19 +122,21 @@ def main():
     mkdir_and_chdir(artist)
     mkdir_and_chdir('%s (%s)' % (album, year))
     
+    cd_dev = Cd_device(CDROM_DEVICE)
+
     num_discs = int(num_discs)
     for i in range(num_discs):
         disc_num = '%02d' % (i + 1)
         mkdir_and_chdir('d' + disc_num)
-        raw_input('Insert Disc %s and press the enter key to continue.' %
-                  (disc_num))
+        print('Insert Disc %s.' % (disc_num))
+        cd_dev.wait_for_media()
         rip_cd()
         encoder = Process(
             target=encode_all_wav, args=(disc_num, artist, album, year))
         encoder.start()
         os.chdir('..')
         
-        sh(['eject', CDROM_DEVICE])
+        cd_dev.eject()
         
     # Wait for child processes to complete.
     wait_all()
