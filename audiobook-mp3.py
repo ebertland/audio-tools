@@ -33,6 +33,21 @@ def mkdir_and_chdir(d):
             raise
     os.chdir(d)
 
+def extract_range(range_str):
+    for sep in ('-', ':', ','):
+        try:
+            first, last = range_str.split(sep)
+            break
+        except ValueError:
+            pass
+    
+    first = int(first.strip())
+    last = int(last.strip())
+    
+    return range(first, last+1)
+    
+    
+
 def rip_cd():
     sh([CDPARANOIA, '-d', CDROM_DEVICE, '-B'])
 
@@ -104,18 +119,18 @@ def main():
         artist = raw_input('Author: ')
         album = raw_input('Book: ')
         year = raw_input('Year: ')
-        num_discs = raw_input('Number of Discs: ')
+        range_discs = raw_input('Range of Discs: ')
     else:
         assert len(sys.argv) == 5
         artist = sys.argv[1]
         album = sys.argv[2]
         year = sys.argv[3]
-        num_discs = sys.argv[4]
+        range_discs = sys.argv[4]
         
         print('Author: ' + artist)
         print('Book: ' + album)
         print('Year: ' + year)
-        print('Number of Discs: ' + num_discs)
+        print('Range of Discs: ' + range_discs)
     
     raw_input('If this looks good, please press enter to begin.')
     
@@ -124,9 +139,8 @@ def main():
     
     cd_dev = Cd_device(CDROM_DEVICE)
 
-    num_discs = int(num_discs)
-    for i in range(num_discs):
-        disc_num = '%02d' % (i + 1)
+    for i in extract_range(range_discs):
+        disc_num = '%02d' % (i)
         mkdir_and_chdir('d' + disc_num)
         print('Insert Disc %s.' % (disc_num))
         cd_dev.wait_for_media()
